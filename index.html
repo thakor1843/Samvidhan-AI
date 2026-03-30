@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Samvidhan AI - India Constitution Expert</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #343541;
+            --chat-bg: #444654;
+            --text-color: #ECECF1;
+            --accent-color: #d4a843; /* Gold for Constitution theme */
+            --input-bg: #40414F;
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex; flex-direction: column;
+        }
+
+        header {
+            background-color: #202123;
+            padding: 15px 20px; text-align: center;
+            border-bottom: 1px solid #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        header h1 {
+            margin: 0; font-size: 1.2rem; font-weight: 600;
+            letter-spacing: 1px; color: var(--accent-color);
+        }
+
+        #chat-container {
+            flex: 1; overflow-y: auto; padding-bottom: 120px;
+        }
+
+        .message-wrapper {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .message-wrapper.ai { background-color: var(--chat-bg); }
+
+        .message-content {
+            max-width: 800px; margin: 0 auto;
+            display: flex; gap: 20px; line-height: 1.6;
+        }
+
+        .avatar {
+            width: 32px; height: 32px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px; flex-shrink: 0;
+        }
+
+        .user .avatar { background-color: #5436DA; color: white; }
+        .ai .avatar { background-color: #10a37f; color: white; }
+
+        .text { flex: 1; overflow-x: auto; font-size: 15px; }
+        .text p { margin-top: 0; }
+        .text ul, .text ol { margin-top: 0; padding-left: 20px; }
+
+        .input-container {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background-image: linear-gradient(180deg, transparent, var(--bg-color) 25%);
+            padding: 30px 20px 20px; box-sizing: border-box;
+        }
+
+        .input-box {
+            max-width: 800px; margin: 0 auto; position: relative;
+            display: flex; align-items: center;
+            background-color: var(--input-bg);
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        textarea {
+            width: 100%; background: transparent; border: none;
+            color: white; padding: 14px 50px 14px 16px;
+            font-size: 1rem; resize: none; outline: none;
+            font-family: inherit; max-height: 200px;
+        }
+
+        button {
+            position: absolute; right: 10px; bottom: 8px;
+            background: var(--accent-color); border: none;
+            color: #000; padding: 6px 10px; border-radius: 6px;
+            cursor: pointer; transition: 0.2s; font-weight: bold;
+        }
+
+        button:hover { opacity: 0.8; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        /* Typing Animation */
+        .typing-indicator { display: inline-flex; gap: 4px; align-items: center; height: 24px; }
+        .typing-indicator span { width: 6px; height: 6px; background: #ccc; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚖️ Samvidhan AI</h1>
+    </header>
+
+    <div id="chat-container">
+        <div class="message-wrapper ai">
+            <div class="message-content">
+                <div class="avatar">AI</div>
+                <div class="text">
+                    <p>Namaste! I am Samvidhan AI, your guide to the Constitution of India. You can ask me anything naturally in English—about your fundamental rights, specific articles, or how the legal framework functions. How can I help you today?</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-container">
+        <div class="input-box">
+            <textarea id="user-input" rows="1" placeholder="Ask a question..." autofocus></textarea>
+            <button id="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        
+        // This array keeps the memory of the conversation
+        let conversationHistory = [];
+
+        // Auto-resize textarea
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight < 200 ? this.scrollHeight : 200) + 'px';
+        });
+
+        // Submit on Enter (Shift+Enter for new line)
+        userInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function createMessageElement(role, content) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${role}`;
+            const avatarText = role === 'user' ? 'U' : 'AI';
+            
+            // Parse Markdown for AI responses
+            const formattedContent = role === 'ai' && !content.includes('typing-indicator')
+                ? marked.parse(content) 
+                : `<p>${content}</p>`;
+
+            wrapper.innerHTML = `
+                <div class="message-content">
+                    <div class="avatar">${avatarText}</div>
+                    <div class="text">${formattedContent}</div>
+                </div>
+            `;
+            return wrapper;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            // 1. Render User Message
+            chatContainer.appendChild(createMessageElement('user', text));
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            sendBtn.disabled = true;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // 2. Add to History
+            conversationHistory.push({ role: 'user', content: text });
+
+            // 3. Render Typing Indicator
+            const typingIndicator = createMessageElement('ai', '<div class="typing-indicator"><span></span><span></span><span></span></div>');
+            chatContainer.appendChild(typingIndicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                // 4. Fetch from Vercel Backend
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: conversationHistory })
+                });
+
+                const data = await response.json();
+                chatContainer.removeChild(typingIndicator);
+
+                if (response.ok) {
+                    const aiReply = data.reply;
+                    chatContainer.appendChild(createMessageElement('ai', aiReply));
+                    conversationHistory.push({ role: 'assistant', content: aiReply });
+                } else {
+                    chatContainer.appendChild(createMessageElement('ai', '⚠️ Error: ' + data.error));
+                }
+
+            } catch (error) {
+                chatContainer.removeChild(typingIndicator);
+                chatContainer.appendChild(createMessageElement('ai', '⚠️ Network error. Please try again.'));
+            } finally {
+                sendBtn.disabled = false;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                userInput.focus();
+            }
+        }
+    </script>
+</body>
+  </html>
+  
